@@ -14,6 +14,9 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
+    def __str__(self):
+        return self.username
+
 class Account(models.Model):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
@@ -27,6 +30,15 @@ class Account(models.Model):
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    account_type = models.CharField(max_length=100, choices=[
+        ('cash', 'Cash'),
+        ('bank','Bank'),
+        ('mobile_money', 'Mobile Money'),
+        ('credit_card', 'Credit Card'),
+        ('other', 'Other'),
+        ],
+        default='cash'
+    )
 
     class Meta:
         unique_together = ('user', 'name')
@@ -57,6 +69,7 @@ class Transaction(models.Model):
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="transactions")
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="transactions", null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="transactions")
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -78,3 +91,17 @@ class Budget(models.Model):
 
     def __str__(self):
         return f"{self.user.name} - {self.category.name} ({self.month}) : {self.amount}"
+
+class Goal(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="goals")
+    name = models.CharField(max_length=200)  # e.g., "Car"
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    current_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    deadline = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def progress(self):
+        return (self.current_amount / self.target_amount) * 100 if self.target_amount else 0
+
+    def __str__(self):
+        return self.name
