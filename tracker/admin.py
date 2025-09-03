@@ -6,9 +6,9 @@ from .models import Account, Category, Transaction, Budget, Goal
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'user', 'account_type', 'balance', 'created_at')
+    list_display = ('id', 'name', 'user', 'currency', 'account_type', 'balance', 'created_at')
     search_fields = ('name', 'user__email', 'user__username')
-    list_filter = ('created_at',)
+    list_filter = ('account_type','currency','created_at',)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

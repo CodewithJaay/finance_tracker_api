@@ -36,8 +36,22 @@ class Account(models.Model):
         ('mobile_money', 'Mobile Money'),
         ('credit_card', 'Credit Card'),
         ('other', 'Other'),
+        ])
+    currency = models.CharField(max_length=3, choices=[
+        ('KES', 'Kenyan Shilling'),
+        ('USD', 'US Dollar'),
+        ('EUR', 'Euro'),
+        ('GBP', 'Great British Pound'),
+        ('CNY', 'Chinese Yuan'),
+        ('JPY', 'Japanese Yen'),
+        ('CAD', 'Canadian Dollar'),
+        ('AUD', 'Australian Dollar'),
+        ('INR', 'Indian Rupee'),
+        ('ZAR', 'South African Rand'),
+        ('UGX', 'Ugandan Shilling'),
+        ('TZS', 'Tanzanian Shilling'),
         ],
-        default='cash'
+        default='KES'
     )
 
     class Meta:
@@ -45,7 +59,7 @@ class Account(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.name} ({self.user.email})"
+        return f"{self.name} ({self.user.email}) - {self.currency}"
 
 class Category(models.Model):
     CATEGORY_TYPES = (
@@ -73,12 +87,18 @@ class Transaction(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="transactions")
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3)
     description = models.TextField(blank=True, null=True)
     date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        if not self.currency and self.account:
+            self.currency = self.account.currency #inherit from account
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.transaction_type} - {self.amount} ({self.category.name})"
+        return f"{self.transaction_type} - {self.amount} {self.currency} ({self.category.name})"
 
 class Budget(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
