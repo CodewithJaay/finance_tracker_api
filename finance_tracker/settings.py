@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os 
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,15 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z*ih=cn9uj(bv#+5_vu%u8@e(rcye^e60fo19kh#%1rlau=&q6'
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = []
-
-
-# Application definition
+ALLOWED_HOSTS = ["127.0.0.1", "localhost",]
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:8000"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -39,11 +39,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'sslserver',
+    'csp',
     'tracker',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'csp.middleware.CSPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -57,7 +61,7 @@ ROOT_URLCONF = 'finance_tracker.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -117,7 +121,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -130,7 +138,64 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    )
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+
 }
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'AUTH_HEADER_TYPES': ("Bearer",),
+}
+
+
 AUTH_USER_MODEL = 'tracker.User'
+
+#-----Security Hardening-----
+if DEBUG:
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_HTTPONLY = False
+    SESSION_COOKIE_HTTPONLY = False
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+
+else:
+    # Production: enforce strict security
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_HTTPONLY = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+ 
+
+# X-Content-Type-Options (MIME sniffing prevention)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# XSS Protection (modern browsers already block most reflected XSS)
+SECURE_BROWSER_XSS_FILTER = True
+
+# Frame options (Clickjacking protection)
+X_FRAME_OPTIONS = 'DENY'
+
+# CSP (django-csp)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": ("'self'", "https://cdn.jsdelivr.net"),
+        "style-src": ("'self'", "https://fonts.googleapis.com"),
+        "font-src": ("'self'", "https://fonts.gstatic.com"),
+        "img-src": ("'self'", "data:"),
+        "connect-src": ("'self'",),
+    }
+}
+
+

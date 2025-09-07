@@ -87,7 +87,7 @@ class Transaction(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="transactions")
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3)
+    currency = models.CharField(max_length=3, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -95,8 +95,26 @@ class Transaction(models.Model):
     def save(self, *args, **kwargs):
         if not self.currency and self.account:
             self.currency = self.account.currency #inherit from account
-        super().save(*args, **kwargs)
 
+        #If Updating,reverse old trasactions
+        if self.pk:
+            old = Transaction.objects.get(pk=self.pk)
+            if old.account and old.transaction_type == 'income':
+                old.account.balance -= old.amount
+                old.account.save()
+            elif old.account and old.transaction_type == 'expense':
+                old.account.balance += old.amount
+                old.account.save()
+
+        #Apply new transaction    
+        super().save(*args, **kwargs)
+        if self.account:
+            if self.transaction_type == 'income':
+                self.account.balance += self.amount
+            else:
+                self.account.balance -= self.amount
+            self.account.save()
+ 
     def __str__(self):
         return f"{self.transaction_type} - {self.amount} {self.currency} ({self.category.name})"
 
@@ -110,7 +128,7 @@ class Budget(models.Model):
         unique_together = ('user', 'category', 'month')
 
     def __str__(self):
-        return f"{self.user.name} - {self.category.name} ({self.month}) : {self.amount}"
+        return f"{self.user.username} - {self.category.name} ({self.month}) : {self.amount}"
 
 class Goal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="goals")
@@ -121,7 +139,9 @@ class Goal(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def progress(self):
-        return (self.current_amount / self.target_amount) * 100 if self.target_amount else 0
+        if not self.target_amount:
+            return 0
+        return min((self.current_amount / self.target_amount) * 100, 100)
 
     def __str__(self):
         return self.name

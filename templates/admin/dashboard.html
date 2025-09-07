@@ -1,0 +1,107 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+  <h1>Finance Dashboard</h1>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div class="card">
+      <h2>Balances per Account</h2>
+      <ul>
+        {% for name, balance in accounts.items %}
+          <li><strong>{{ name }}</strong>: {{ balance }}</li>
+        {% empty %}
+          <li>No accounts found</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Income vs Expenses</h2>
+      <p><strong>Income:</strong> {{ income }}</p>
+      <p><strong>Expenses:</strong> {{ expenses }}</p>
+      <canvas id="incomeExpenseChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div class="card">
+      <h2>Expenses by Category</h2>
+      <canvas id="categoryChart" height="200"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Monthly Income vs Expenses</h2>
+      <canvas id="monthlyChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Income vs Expenses (Pie)
+      const ctx1 = document.getElementById("incomeExpenseChart").getContext("2d");
+      new Chart(ctx1, {
+        type: "pie",
+        data: {
+          labels: ["Income", "Expenses"],
+          datasets: [{
+            data: [{{ income|default:0 }}, {{ expenses|default:0 }}],
+            backgroundColor: ["#4CAF50", "#F44336"]
+          }]
+        }
+      });
+
+      // Expenses by Category (Pie)
+      const ctx2 = document.getElementById("categoryChart").getContext("2d");
+      new Chart(ctx2, {
+        type: "pie",
+        data: {
+          labels: [{% for name, value in category_data.items %}"{{ name }}",{% endfor %}],
+          datasets: [{
+            data: [{% for name, value in category_data.items %}{{ value }},{% endfor %}],
+            backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4CAF50", "#9C27B0", "#FF9800"]
+          }]
+        }
+      });
+
+      // Monthly Income vs Expenses (Line)
+      const ctx3 = document.getElementById("monthlyChart").getContext("2d");
+      new Chart(ctx3, {
+        type: "line",
+        data: {
+          labels: [{% for m in months %}"{{ m }}",{% endfor %}],
+          datasets: [
+            {
+              label: "Income",
+              data: [{% for v in income_series %}{{ v }},{% endfor %}],
+              borderColor: "#4CAF50",
+              fill: false,
+              tension: 0.3
+            },
+            {
+              label: "Expenses",
+              data: [{% for v in expense_series %}{{ v }},{% endfor %}],
+              borderColor: "#F44336",
+              fill: false,
+              tension: 0.3
+            }
+          ]
+        }
+      });
+    });
+  </script>
+
+  <style>
+    .card {
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    h2 {
+      margin-top: 0;
+    }
+  </style>
+{% endblock %}

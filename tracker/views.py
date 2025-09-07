@@ -2,9 +2,9 @@ from django.shortcuts import render
 
 # Create your views here.
 from rest_framework import generics, viewsets, permissions
-from .models import User, Account, Category, Transaction, Budget
+from .models import User, Account, Category, Transaction, Budget, Goal
 from .serializers import UserSerializer, AccountSerializer, CategorySerializer, TransactionSerializer
-from .serializers import BudgetSerializer, DashboardSerializer
+from .serializers import BudgetSerializer, DashboardSerializer, GoalSerializer
 from rest_framework.permissions import AllowAny
 from django.db.models import Sum 
 from django.db.models.functions import TruncMonth
@@ -55,6 +55,16 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Budget.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class GoalViewSet(viewsets.ModelViewSet):
+    serializer_class = GoalSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Goal.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -162,6 +172,13 @@ class DashboardView(APIView):
             })
 
         # -------------------------
+        # Goals Progress
+        # -------------------------
+        
+        goals = Goal.objects.filter(user=user)
+        goals_data = GoalSerializer(goals, many=True).data
+
+        # -------------------------
         #Serialize Everything
         # -------------------------
 
@@ -170,6 +187,7 @@ class DashboardView(APIView):
             'current_month_summary' : current_month_summary,
             'category_summary' : category_summary,
             'monthly_history' : monthly_history,
+            'goals' : goals_data,
         }
 
         serializer = DashboardSerializer(dashboard_data)
